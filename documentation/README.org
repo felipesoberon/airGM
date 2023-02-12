@@ -1,0 +1,296 @@
+#+Title: Zero-dimensional model of humid air discharge at atmospheric pressure
+#+AUTHOR: Felipe Soberon
+#+EMAIL: felipe.soberon@gmail.com
+#+DATE: February 2023
+
+* Description
+
+This repository contains a computer model simulation of a plasma in
+humid air at atmospheric pressure. The simulation is a zero
+dimensional model which tracks the density of main plasma species,
+including electrons, ions (positive and negative), neutral molecules
+and atoms, and excited species.
+
+The model consists of 53 species balance equations and 624
+reactions. The reaction data set used is the set reported by Sakiyama et
+al., 2012 [ /J. Phys. D: Appl. Phys./, *45*, 2012].
+
+* Contents
+
+The root folder contains the following folders,
+
+- documentation
+- results
+- src
+    
+** Documentation folder 
+
+The documentation folder contains the following files, 
+
+- README.org :: The current readme file; written in Emacs using
+                org-mode (exported to HTML).
+- TODO.txt :: A text file with list of possible improvements, changes
+              or additions to the model. The contents of this file is
+              reproduced below.
+
+*** The TODO.txt file
+#+INCLUDE: "./TODO.txt"
+
+** Source folders: src
+
+These sub-folders contain the model's C++ source code. To compile and
+install (in Linux) do as usual,
+
+#+BEGIN_SRC
+$ make
+$ sudo make install
+#+END_SRC
+
+Note that this requires GCC g++ and make to be installed in the Linux
+system. This code compiles without errors in the Windows Subsystem 
+for Linux (Windows 10) running Ubuntu 18.04 LTS. 
+
+To clean the compiled source code, do 
+
+#+BEGIN_SRC
+$ make clean
+#+END_SRC
+
+The /src/ folder contains a C++ version of the program written using
+classes (objects). 
+
+** Results folder
+
+This folder contains examples of shell scripts to run the simulation
+using a variable time step and to generate a PDF file with plots of
+the density of species modelled. The plots are generated with gnuplot.
+
+- run.sh :: bash script which compiles, executes and calls gnuplot to
+            plot the output data
+- plot.gnuplot :: Gnuplot script to plot the output data into a PDF
+                  file ( /densities.pdf/ ) where the data is read from
+                  /output.csv/ file.
+- output.csv :: File containing the results of the model, i.e., a list
+                of all reactions and the reaction rate for the
+                electron and gas temperature set AND the density of
+                each species as a function of time and model step
+                count.
+
+
+* Execution
+
+** Running the model
+
+The model shall be executed from the command line as follows, 
+
+#+BEGIN_SRC
+$ ./airGM2.1
+#+END_SRC
+
+Up to five arguments can be passed to the executable:
+1. the total simulation time in seconds,
+2. the peak value electron temperature in eV,
+3. the step time in seconds,
+4. the concentration of water molecules [H2O] in m$^{-3}$, and
+5. the duration time for the plasma pulse discharge in seconds.
+
+All, none or some of the arguments can be passed on to the
+program. The arguments are passed by writing the argument flag
+followed by the argument value. For example,
+
+#+BEGIN_SRC
+$ ./airGM2.1 -Te 2.45 -totaltime 1E-5
+#+END_SRC
+
+The arguments can be passed in any order. Further examples are shown below,
+
+#+BEGIN_SRC
+$ ./airGM2.1 -totaltime 1E-3   
+$ ./airGM2.1 -totaltime 1E-5   -Te 3.3    
+$ ./airGM2.1 -totaltime 1.5E-4 -Te 2.7 -dt 10E-12    
+$ ./airGM2.1 -totaltime 1.5E-4 -Te 1.5 -dt 5E-12  -[H2O] 1.2E24
+$ ./airGM2.1 -totaltime 1.5E-4 -Te 2.2 -dt 1E-9   -[H2O] 0  
+$ ./airGM2.1 -totaltime 2E-2   -Te 3.0 -dt 1E-12  -[H2O] 1.2E24 -plasmatime 1E-9
+#+END_SRC
+
+The executable attempts to read the /output.csv/ file on the folder in
+which it is run. If the executable finds the output file, then it
+continues the simulation from where it was left, otherwise, if it
+cannot find the output file, it starts a new run from time =t=0= with
+default values, which are as follow,
+
+- total simulation time 1 ms   
+- electron temperature 2.6 eV   
+- time step 50 ps   
+- water concentration 1.2 E24 m$^{-3}$    
+
+Note that the default initial concentration of other species is as follows,   
+
+- O$_2$ ::  4.80 E24 m$^{-3}$      
+- N$_2$ ::  1.92 E25 m$^{-3}$    
+- e ::   1 E3 m$^{-3}$   
+- M (third bodies) ::  2.4 E25 m$^{-3}$   
+- T$_{gas}$ ::  298 Kelvin (24.85 C)
+
+Other default settings include,   
+
+- tplasma :: plasma pulse discharge duration time 1 ns
+
+*** Speed up computation
+
+In order to reduce the computation time, the following are applied,   
+
+- the concentration of O$_2$, N$_2$ and H2O are not updated as these are
+  usually many orders of magnitude greater than that of the other
+  species; computation effort on the balance equations for these
+  species is spared (in particular for the O$_2$ equation which contains
+  141 source reactions and 47 loss reactions)
+
+- the concentration of any species containing hydrogen is also ignored
+  if the user inputs null concentration for water, as it is not
+  possible to create H containing molecules without water molecules
+
+- the balance equation of various species contain source and loss
+  contributions from the same reactions; in such cases the reactions
+  are identified and removed if they cancel out or subtracted and only
+  the overall loss or source contribution is computed
+
+Also, other strategies by the user may result in shorter computation
+times, such as specifying larger time steps. Note that the initial
+plasma discharge and subsequent microsecond time range requires short
+time steps in order to get stable output; however, longer time steps
+can be used in the ms to s scale. See for example batch run shell
+script for a dry simulation below,
+
+#+BEGIN_SRC
+#!/bin/bash
+
+airGM2.1 -totaltime 1E-5 -dt   5E-12 -plasmatime 1E-9 -Te 2.6 -[H2O] 0
+airGM2.1 -totaltime 1E-4 -dt  10E-12 
+airGM2.1 -totaltime 1E-3 -dt  20E-12  
+airGM2.1 -totaltime 1E-2 -dt 0.1E-9   
+airGM2.1 -totaltime 1E-1 -dt 0.5E-9   
+airGM2.1 -totaltime 1    -dt   1E-9  
+airGM2.1 -totaltime 10   -dt   2E-9  
+airGM2.1 -totaltime 100  -dt   5E-9  
+#+END_SRC
+
+Note that the simulation above is run by steps where the last row of
+that from the previous call is used by the next to continue the
+simulation. The plasma pulse duration and electron temperature only
+need to be specified in the first run which runs well over the plasma
+discharge phase; these data is irrelevant in subsequent runs. Also,
+the water concentration only needs to be specified in the first run
+because this concentration will be read from the /output.csv/ file in
+the next run.
+
+*** Small density changes
+
+The rate of change for some of the species can be very small; i.e.,
+some reactions are /slow/. A minimum density threshold is set in the
+model (for all species) so that if any given species density is below
+the minimum then the density is set to null. Setting the threshold
+below 1; e.g., 1E-3 m$^{-3}$ allows the slow build up of some species.
+
+
+** Output
+
+The model output is saved on a file named /output.csv/ on the same
+directory as that where the executable is run. The output file
+contains the density of every species in m$^{-3}$. Note that the last
+two columns in the /output.csv/ file are the simulation time in
+seconds and the loop counter (=unsigned long int=).
+
+The densities can be plotted with a suitable plotting software, e.g.,
+gnuplot. The following script in gnuplot generates a plot of a
+selection of species,
+
+#+BEGIN_SRC
+set logscale y  
+set logscale x  
+set datafile separator ","  
+    
+plot 'densities.csv' u 54:34 title 'O' w l, \  
+     'densities.csv' u 54:33 title 'N' w l, \  
+     'densities.csv' u 54:17 title 'e' w l, \  
+     'densities.csv' u 54:1 title 'N+' w l, \  
+     'densities.csv' u 54:2 title 'N2+' w l     
+    
+pause -1  
+#+END_SRC
+
+* References
+
+- Sakiyama et al, Plasma chemistry model of surface microdischarge in
+  humid air and dynamics of reactive neutral species, /J. Phys. D:
+  Appl. Phys./, *45*, (2012), 425201
+- Yi et al., Self-consistent plasma chemistry model for surface
+  microdischarge in humid air including effects of ohmic heating and
+  gas flow, /Plasma Sources Sci. Technol./, *26*, (2017), 105007
+
+* Source code
+
+The source code, version 2.1 (/src/), is reproduced in the following subsections. The makefile, H and CPP files are linked into the current README.org file. 
+
+** makefile
+
+The makefile compiles four objects and the main program. The souce code for the main program and the four objects is reproduced in the following subsections. Note that the compiler used is set to enforce compliance with C++11 standard. The GNU GCC compiler used is greater than version 5. 
+
+#+INCLUDE: "../src/makefile" src 
+
+
+
+** main.cpp
+
+The main program source file includes the global model object/class, which in turn uses the other three objects/classes internally. In addition, the main source code defines and uses a routine to display a short summary of the program and usage description. 
+
+#+INCLUDE: "../src/main.cpp" src C++
+
+
+
+** globalmodel.h
+
+#+INCLUDE: "../src/globalmodel.h" src C++
+
+** globalmodel.cpp
+
+#+INCLUDE: "../src/globalmodel.cpp" src C++
+
+
+
+** commandline.h
+
+The command line object/class is used to define command line tags or flags to input specific values to the program, executed via the command line. The arguments that follow the program name may include one or more flags followed by a value (numerical or string).
+
+#+INCLUDE: "../src/commandline.h" src C++
+
+** commandline.cpp
+
+#+INCLUDE: "../src/commandline.cpp" src C++
+
+
+
+** reaction.h
+
+The reaction object/class is used to declare a reaction out of the 624 reactions listed by Sakiyama et al., 2012. The object includes all the reaction rate functions and the reactants/products of the same. The reactants and product species are identified in this object by a number (0-53) which corresponds to the species numbers assigned in the species object. 
+
+#+INCLUDE: "../src/reaction.h" src C++
+
+** reaction.cpp
+
+#+INCLUDE: "../src/reaction.cpp" src C++
+
+
+
+** species.h
+
+The species object/class is used to declare a species out of the 53 species included in the model of Sakiyama et al., 2012. Each species is assigned a number (or integer index). 
+
+#+INCLUDE: "../src/species.h" src C++
+
+** species.cpp
+
+#+INCLUDE: "../src/species.cpp" src C++
+
+
+END OF DOCUMENT

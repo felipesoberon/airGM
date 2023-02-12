@@ -1,0 +1,107 @@
+1.TRIED but did not result in stable code; densities easily overflow.
+  Instead, it has been implemented as a warning to indicate when a
+  balance equation is leading to double density in one step. Note that
+  the warning is for increasing values, not for reducing ones.
+
+  Limit the time step size to one order of magnitude change in density
+  look for the largest (absolute value) S-L value and compare to
+
+   n_o/dt
+      
+   n_t = n_o + (S-L) * dt
+
+  
+   we do not want the density to shoot out of control, hence limit (S-L)*dt
+   
+   should not grow by more than one order of magnitude, preferrably less, e.g.,
+   should not double in a single time step; if S-L > 0
+
+   (S-L) * dt < n_o 
+
+   hence, 
+
+   dt < n_o / (S-L)      ..... exclude  (S-L) == 0
+
+
+   Or should not drop by more than half in a single step, if (S-L) < 0
+   
+   abs{S -L} * dt < n_o /2
+
+   hence,
+ 
+   dt < 0.5 * n_o / abs{S-L} 
+
+
+2.DONE (on version 2, which uses objects)
+
+  Move all global variable to a separate cpp file 
+
+
+3.DONE
+
+  When the simulation restart from the last state in output.csv, the
+  last data point is repeated. Correct and prevent duplication of data
+  points.  While this is not causing an issue with Gnuplot, it may
+  become a problem in other software, for example if trying to
+  calculate and average or other mathematical operation in which
+  duplication will cause a calculation error (e.g., derivative).
+
+
+4.DONE
+
+  Adjust the save data to "output.csv" frequency by changing the
+  number of steps between saves. Currently the number of steps between
+  saves increases by a factor of 10 every time the time increases by a
+  factor of 10. However, if the user was to change the time step dt
+  (for example, at longer times to help expedite the calculation) then
+  the frequency of saves may result in low number of data points
+  saved, limiting the resolution of the data.
+
+
+5.DONE
+
+  Change the counter variable type from unsigned int to unsigned long
+  to allow running simulations with time greater than 1 second.
+
+
+6.PENDING... 
+
+  Implement MPI in source code to enable use of message parsing and
+  running the simulation with multiple CPU cores.
+
+7.DONE
+
+  In the balance equations, if the density of the species for which
+  the equation is being calculated is null, then ignore the "loss" in
+  the equation.
+
+
+8.DONE - changed to a pulse following Sakiyama et al., 2012
+ 
+  Transition the electron temperature from plasma to afterglow
+  gradually over a period of (say 100ns) to avoid a sudden change in
+  the concentration of many species due to the change is reaction
+  rates resulting from the temperature shift. The temperature may drop
+  linearly from the temperature set for the plasma discharge to the
+  gas temperature in a period of 100 ns. The assumption is that the
+  electrons cool down very quickly due to collisions and that in the
+  absence of external fields, their energy matches that of the
+  temperature of the gas.
+
+
+9.DONE 
+
+  Some reactions contain the same species on the left hand side and
+  the right hand side. When calculating loss and source terms the
+  species of both sides of the equation cancel out. Identify these and
+  update the lists of contributing reactions to the sources and losses
+  to avoid unnecessary calculations.
+
+
+10.DONE
+
+   Rewrite the source code using objects to define variables and
+   routines for species, reactions and simulation processes. In other
+   words, write the code using the C++ feature of class definiton as
+   opposed of a serial program, C-style.
+
